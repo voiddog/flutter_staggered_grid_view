@@ -22,7 +22,7 @@ class StaggeredGridConfiguration {
     @required this.crossAxisSpacing,
     @required this.reverseCrossAxis,
     @required this.staggeredTileCount,
-    this.mainAxisOffsetsCacheSize = 3,
+    this.mainAxisOffsetsCacheSize = 1,
   })  : assert(crossAxisCount != null && crossAxisCount > 0),
         assert(staggeredTileBuilder != null),
         assert(cellExtent != null && cellExtent >= 0),
@@ -233,6 +233,7 @@ class RenderSliverStaggeredGrid extends RenderSliverVariableSizeBoxAdaptor {
   /// The delegate that controls the configuration of the staggered grid.
   SliverStaggeredGridDelegate get gridDelegate => _gridDelegate;
   SliverStaggeredGridDelegate _gridDelegate;
+
   set gridDelegate(SliverStaggeredGridDelegate value) {
     assert(value != null);
     if (_gridDelegate == value) return;
@@ -259,7 +260,6 @@ class RenderSliverStaggeredGrid extends RenderSliverVariableSizeBoxAdaptor {
     bool reachedEnd = false;
     double trailingScrollOffset = 0.0;
     double leadingScrollOffset = double.infinity;
-    bool visible = false;
     int firstIndex = 0;
     int lastIndex = 0;
 
@@ -295,6 +295,7 @@ class RenderSliverStaggeredGrid extends RenderSliverVariableSizeBoxAdaptor {
     var mainAxisOffsets = viewportOffset.mainAxisOffsets.toList();
     HashSet<int> visibleIndices = new HashSet<int>();
 
+    bool visible = false;
     // Iterate through all children while they can be visible.
     for (var index = viewportOffset.firstChildIndex;
         mainAxisOffsets.any((o) => o <= targetEndScrollOffset);
@@ -307,6 +308,14 @@ class RenderSliverStaggeredGrid extends RenderSliverVariableSizeBoxAdaptor {
         break;
       }
 
+      // 赋予主轴缓存
+      bool useCacheMainExtent = false;
+      if (!geometry.hasTrailingScrollOffset) {
+        geometry = geometry.copyWith(
+            mainAxisExtent: viewportOffset.cacheMainExtents[index]);
+        useCacheMainExtent = geometry.mainAxisExtent != null;
+      }
+
       final bool hasTrailingScrollOffset = geometry.hasTrailingScrollOffset;
       RenderBox child;
       if (!hasTrailingScrollOffset) {
@@ -315,6 +324,7 @@ class RenderSliverStaggeredGrid extends RenderSliverVariableSizeBoxAdaptor {
             new BoxConstraints.tightFor(width: geometry.crossAxisExtent);
         child = addAndLayoutChild(index, constraints, parentUsesSize: true);
         geometry = geometry.copyWith(mainAxisExtent: paintExtentOf(child));
+        viewportOffset.cacheMainExtents[index] = geometry.mainAxisExtent;
       }
 
       if (!visible &&
@@ -326,8 +336,12 @@ class RenderSliverStaggeredGrid extends RenderSliverVariableSizeBoxAdaptor {
       }
 
       if (visible && hasTrailingScrollOffset) {
-        child =
-            addAndLayoutChild(index, geometry.getBoxConstraints(constraints));
+        child = addAndLayoutChild(
+            index, geometry.getBoxConstraints(constraints),
+            parentUsesSize: true);
+        if (useCacheMainExtent) {
+          viewportOffset.cacheMainExtents[index] = paintExtentOf(child);
+        }
       }
 
       if (child != null) {
@@ -452,7 +466,7 @@ class RenderSliverStaggeredGrid extends RenderSliverVariableSizeBoxAdaptor {
   static _Block _findFirstAvailableBlockWithCrossAxisCount(
       int crossAxisCount, List<double> offsets) {
     return _findFirstAvailableBlockWithCrossAxisCountAndOffsets(
-        crossAxisCount, new List.from(offsets));
+        crossAxisCount, offsets);
   }
 
   /// Finds the first available block with at least the specified [crossAxisCount].
@@ -513,7 +527,8 @@ class _ViewportOffsets {
     this.trailingScrollOffset, [
     this.pageIndex = 0,
     this.firstChildIndex = 0,
-  ]) : this.mainAxisOffsets = new List.from(mainAxisOffsets);
+  ])  : this.mainAxisOffsets = new List.from(mainAxisOffsets),
+        cacheMainExtents = {};
 
   final int pageIndex;
 
@@ -522,6 +537,9 @@ class _ViewportOffsets {
   final double trailingScrollOffset;
 
   final List<double> mainAxisOffsets;
+
+  /// 增加主轴距离缓存
+  final Map<int, double> cacheMainExtents;
 
   @override
   String toString() =>

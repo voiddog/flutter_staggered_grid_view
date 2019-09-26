@@ -309,16 +309,14 @@ class RenderSliverStaggeredGrid extends RenderSliverVariableSizeBoxAdaptor {
       }
 
       // 赋予主轴缓存
-      bool useCacheMainExtent = false;
+      double cacheExtent;
       if (!geometry.hasTrailingScrollOffset) {
-        geometry = geometry.copyWith(
-            mainAxisExtent: viewportOffset.cacheMainExtents[index]);
-        useCacheMainExtent = geometry.mainAxisExtent != null;
+        cacheExtent = viewportOffset.cacheMainExtents[index];
       }
 
       final bool hasTrailingScrollOffset = geometry.hasTrailingScrollOffset;
       RenderBox child;
-      if (!hasTrailingScrollOffset) {
+      if (!hasTrailingScrollOffset && cacheExtent == null) {
         // Layout the child to compute its tailingScrollOffset.
         BoxConstraints constraints =
             new BoxConstraints.tightFor(width: geometry.crossAxisExtent);
@@ -327,21 +325,35 @@ class RenderSliverStaggeredGrid extends RenderSliverVariableSizeBoxAdaptor {
         viewportOffset.cacheMainExtents[index] = geometry.mainAxisExtent;
       }
 
+      // 预计滚动距离
+      final double expectTailingScrollOffset =
+          geometry.scrollOffset + (geometry.mainAxisExtent ?? cacheExtent);
+
       if (!visible &&
           targetEndScrollOffset >= geometry.scrollOffset &&
-          scrollOffset <= geometry.trailingScrollOffset) {
+          scrollOffset <= expectTailingScrollOffset) {
         visible = true;
         leadingScrollOffset = geometry.scrollOffset;
         firstIndex = index;
       }
 
-      if (visible && hasTrailingScrollOffset) {
-        child = addAndLayoutChild(
-            index, geometry.getBoxConstraints(constraints),
-            parentUsesSize: true);
-        if (useCacheMainExtent) {
-          viewportOffset.cacheMainExtents[index] = paintExtentOf(child);
+      if (visible) {
+        if (hasTrailingScrollOffset) {
+          child =
+              addAndLayoutChild(index, geometry.getBoxConstraints(constraints));
+        } else if (cacheExtent != null) {
+          BoxConstraints constraints =
+              new BoxConstraints.tightFor(width: geometry.crossAxisExtent);
+          child = addAndLayoutChild(index, constraints, parentUsesSize: true);
+          geometry = geometry.copyWith(mainAxisExtent: paintExtentOf(child));
+          viewportOffset.cacheMainExtents[index] = geometry.mainAxisExtent;
         }
+      }
+
+      if (!geometry.hasTrailingScrollOffset) {
+        assert(cacheExtent != null);
+        // 如果没有实际滚动数据，添加 cache 数据为滚动距离
+        geometry = geometry.copyWith(mainAxisExtent: cacheExtent);
       }
 
       if (child != null) {
@@ -773,15 +785,15 @@ class SliverStaggeredGridDelegateWithMaxCrossAxisExtent
 
     final double cellExtent = usableCrossAxisExtent / crossAxisCount;
     return new StaggeredGridConfiguration(
-      crossAxisCount: crossAxisCount,
-      staggeredTileBuilder: staggeredTileBuilder,
-      staggeredTileCount: staggeredTileCount,
-      cellExtent: cellExtent,
-      mainAxisSpacing: mainAxisSpacing,
-      crossAxisSpacing: crossAxisSpacing,
-      reverseCrossAxis: axisDirectionIsReversed(constraints.crossAxisDirection),
-      mainAxisOffsetsCacheSize: mainAxisOffsetsCacheSize
-    );
+        crossAxisCount: crossAxisCount,
+        staggeredTileBuilder: staggeredTileBuilder,
+        staggeredTileCount: staggeredTileCount,
+        cellExtent: cellExtent,
+        mainAxisSpacing: mainAxisSpacing,
+        crossAxisSpacing: crossAxisSpacing,
+        reverseCrossAxis:
+            axisDirectionIsReversed(constraints.crossAxisDirection),
+        mainAxisOffsetsCacheSize: mainAxisOffsetsCacheSize);
   }
 
   @override

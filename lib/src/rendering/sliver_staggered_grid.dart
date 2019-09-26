@@ -22,7 +22,7 @@ class StaggeredGridConfiguration {
     @required this.crossAxisSpacing,
     @required this.reverseCrossAxis,
     @required this.staggeredTileCount,
-    this.mainAxisOffsetsCacheSize = 1,
+    this.mainAxisOffsetsCacheSize = 3,
   })  : assert(crossAxisCount != null && crossAxisCount > 0),
         assert(staggeredTileBuilder != null),
         assert(cellExtent != null && cellExtent >= 0),
@@ -568,6 +568,7 @@ abstract class SliverStaggeredGridDelegate {
     this.mainAxisSpacing: 0.0,
     this.crossAxisSpacing: 0.0,
     this.staggeredTileCount,
+    this.mainAxisOffsetsCacheSize = 3,
   })  : assert(staggeredTileBuilder != null),
         assert(mainAxisSpacing != null && mainAxisSpacing >= 0),
         assert(crossAxisSpacing != null && crossAxisSpacing >= 0);
@@ -587,6 +588,9 @@ abstract class SliverStaggeredGridDelegate {
   /// If null, the number of tiles is determined by the least index for which
   /// [builder] returns null.
   final int staggeredTileCount;
+
+  /// The number of pages necessary to cache a mainAxisOffsets value.
+  final int mainAxisOffsetsCacheSize;
 
   bool _debugAssertIsValid() {
     assert(staggeredTileBuilder != null);
@@ -644,12 +648,14 @@ class SliverStaggeredGridDelegateWithFixedCrossAxisCount
     double mainAxisSpacing: 0.0,
     double crossAxisSpacing: 0.0,
     int staggeredTileCount,
+    int mainAxisOffsetsCacheSize = 3,
   })  : assert(crossAxisCount != null && crossAxisCount > 0),
         super(
           staggeredTileBuilder: staggeredTileBuilder,
           mainAxisSpacing: mainAxisSpacing,
           crossAxisSpacing: crossAxisSpacing,
           staggeredTileCount: staggeredTileCount,
+          mainAxisOffsetsCacheSize: mainAxisOffsetsCacheSize,
         );
 
   /// The number of children in the cross axis.
@@ -675,6 +681,7 @@ class SliverStaggeredGridDelegateWithFixedCrossAxisCount
       mainAxisSpacing: mainAxisSpacing,
       crossAxisSpacing: crossAxisSpacing,
       reverseCrossAxis: axisDirectionIsReversed(constraints.crossAxisDirection),
+      mainAxisOffsetsCacheSize: mainAxisOffsetsCacheSize,
     );
   }
 
@@ -724,12 +731,14 @@ class SliverStaggeredGridDelegateWithMaxCrossAxisExtent
     double mainAxisSpacing: 0.0,
     double crossAxisSpacing: 0.0,
     int staggeredTileCount,
+    int mainAxisOffsetsCacheSize = 3,
   })  : assert(maxCrossAxisExtent != null && maxCrossAxisExtent > 0),
         super(
           staggeredTileBuilder: staggeredTileBuilder,
           mainAxisSpacing: mainAxisSpacing,
           crossAxisSpacing: crossAxisSpacing,
           staggeredTileCount: staggeredTileCount,
+          mainAxisOffsetsCacheSize: mainAxisOffsetsCacheSize,
         );
 
   /// The maximum extent of tiles in the cross axis.
@@ -771,6 +780,7 @@ class SliverStaggeredGridDelegateWithMaxCrossAxisExtent
       mainAxisSpacing: mainAxisSpacing,
       crossAxisSpacing: crossAxisSpacing,
       reverseCrossAxis: axisDirectionIsReversed(constraints.crossAxisDirection),
+      mainAxisOffsetsCacheSize: mainAxisOffsetsCacheSize
     );
   }
 
